@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Rent-IT Pro | Modern Dashboard</title>
+    <link rel="stylesheet" href="/css/style.css">
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;600;800&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+</head>
+<body>
+
+<div class="container-wrapper">
+    <div class="header-section glass-panel">
+        <h1> Rent-IT <span style="color:var(--primary)">Pro</span></h1>
+        <div id="auth-display" style="display: flex; align-items: center; gap: 15px;">
+            Ładowanie...
+        </div>
+    </div>
+
+    <div class="form-section glass-panel" id="admin-panel" style="display: none; padding: 30px; margin-bottom: 30px;">
+        <h3 style="margin-top:0">➕ Nowy zasób</h3>
+        <div style="display:flex; gap:15px; flex-wrap: wrap; align-items: center;">
+            <input type="text" id="newName" placeholder="Nazwa urządzenia" class="search-box" style="flex:2; margin:0">
+            <input type="text" id="newCategory" placeholder="Kategoria" class="search-box" style="flex:1; margin:0">
+            <input type="text" id="newImageUrl" placeholder="URL obrazu" class="search-box" style="flex:2; margin:0">
+
+            <button class="btn btn-primary" onclick="addNewAsset()">Dodaj</button>
+            <button id="cancel-btn" class="btn btn-outline" style="display:none; border-color:var(--danger); color:var(--danger)" onclick="resetForm()">Anuluj</button>
+        </div>
+    </div>
+
+    <div class="glass-panel" style="margin-bottom: 25px; display: flex; align-items: center; justify-content: space-between; gap: 20px; padding: 15px 25px; flex-wrap: wrap;">
+        <div style="flex: 1; min-width: 250px; display: flex; align-items: center; gap: 10px;">
+            <span style="font-size: 1.2rem;"></span>
+            <input type="text" id="searchInput" onkeyup="filterAssets()" placeholder="Czego szukasz dzisiaj?"
+                   style="border: none; background: transparent; width: 100%; outline: none; font-size: 1rem; font-family: inherit;">
+        </div>
+
+        <div style="display: flex; align-items: center; gap: 25px; flex-wrap: wrap;">
+            <div style="display: flex; align-items: center; gap: 10px;">
+                <span style="font-weight: 600; opacity: 0.6; font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.5px;">Sortuj:</span>
+                <select id="sortSelect" onchange="changeSort()"
+                        style="border: 1px solid var(--glass-border); border-radius: 10px; padding: 8px 15px; background: white; cursor: pointer; outline: none; font-weight: 600;">
+                    <option value="name">Nazwa (A-Z)</option>
+                    <option value="category">Kategoria</option>
+                </select>
+            </div>
+
+            <label style="display: flex; align-items: center; gap: 10px; cursor: pointer; font-weight: 600; font-size: 0.9rem;">
+                <input type="checkbox" id="showOnlyAvailable" onchange="filterAssets()" style="width: 18px; height: 18px; cursor: pointer; accent-color: var(--primary);">
+                Tylko dostępne
+            </label>
+        </div>
+    </div>
+
+    <div class="main-container">
+
+        <div class="content-area">
+            <div id="my-rentals-panel" class="glass-panel" style="display:none; margin-bottom: 25px; border-left: 5px solid #6366f1; padding: 20px;">
+                <h3 style="margin: 0 0 15px 0; font-size: 1.1rem; display: flex; align-items: center; gap: 10px;">
+                    📦 Twoje aktualne wypożyczenia
+                </h3>
+                <div id="my-rentals-list" style="display: grid; gap: 10px;"></div>
+            </div>
+
+            <h2 style="font-weight: 800; margin-bottom: 25px;">Zasoby firmy</h2>
+            <div class="card-grid" id="assets-list"></div>
+            <div id="pagination-container" style="margin-top: 30px; display: flex; gap: 10px; justify-content: center;"></div>
+        </div>
+
+        <div id="admin-sidebar" class="admin-sidebar glass-panel">
+            <h3 style="font-weight: 800; margin-bottom: 20px;">Użytkownicy</h3>
+            <div id="users-list"></div>
+        </div>
+
+    </div>
+    <div class="history-section glass-panel" style="margin-top: 40px; padding: 30px;">
+        <h2 style="font-weight: 800; margin-bottom: 25px; text-align: center;">Ostatnie operacje</h2>
+
+        <div style="display: flex; justify-content: center;">
+            <div style="width: 100%; max-width: 1000px; overflow-x: auto;">
+                <table style="width: 100%; border-collapse: collapse; margin: 0 auto;">
+                    <thead>
+                    <tr style="border-bottom: 2px solid var(--glass-border);">
+                        <th style="padding: 15px; text-align: left;">Produkt</th>
+                        <th style="padding: 15px; text-align: left;">Użytkownik</th>
+                        <th style="padding: 15px; text-align: left;">Data wypożyczenia</th>
+                        <th style="padding: 15px; text-align: left;">Status zwrotu</th>
+                    </tr>
+                    </thead>
+                    <tbody id="history-table"></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div id="loginModal" class="modal">
+    <div class="modal-content glass-panel">
+        <span class="close" onclick="closeModal('loginModal')">&times;</span>
+        <h2>Witaj ponownie! </h2>
+        <p style="opacity: 0.6; margin-bottom: 25px;">Zaloguj się do systemu Rent-IT</p>
+        <form action="/login" method="POST">
+            <input type="text" name="username" placeholder="Twój login" required>
+            <input type="password" name="password" placeholder="Twoje hasło" required>
+            <button type="submit" class="btn btn-primary" style="width: 100%; justify-content: center; margin-top: 10px;">Zaloguj się</button>
+        </form>
+    </div>
+</div>
+
+<div id="regModal" class="modal">
+    <div class="modal-content glass-panel">
+        <span class="close" onclick="closeModal('regModal')">&times;</span>
+        <h2>Nowe konto </h2>
+        <p style="opacity: 0.6; margin-bottom: 25px;">Dołącz do zespołu zarządzania</p>
+        <input type="text" id="reg-user" placeholder="Nazwa użytkownika">
+        <input type="password" id="reg-pass" placeholder="Silne hasło">
+        <button onclick="register()" class="btn btn-primary" style="width: 100%; justify-content: center; background: var(--success);">Zarejestruj się</button>
+    </div>
+</div>
+
+<script src="js/app.js"></script>
+</body>
+</html>
