@@ -48,14 +48,24 @@ public class AssetController {
         org.springframework.data.domain.Pageable pageable =
                 org.springframework.data.domain.PageRequest.of(page, size, org.springframework.data.domain.Sort.by(sortBy).ascending());
 
-        return assetRepository.findAll(pageable).map(asset -> new AssetDTO(
-                asset.getId(),
-                asset.getName(),
-                asset.getCategory(),
-                asset.getImageUrl(),
-                asset.isAvailable(),
-                null
-        ));
+        return assetRepository.findAll(pageable).map(asset -> {
+            LocalDateTime rentalDate = null;
+
+            if (!asset.isAvailable()) {
+                RentalHistory active = historyRepository.findByAssetIdAndReturnDateIsNull(asset.getId());
+                if (active != null) {
+                    rentalDate = active.getRentalDate();
+                }
+            }
+            return new AssetDTO(
+                    asset.getId(),
+                    asset.getName(),
+                    asset.getCategory(),
+                    asset.getImageUrl(),
+                    asset.isAvailable(),
+                    rentalDate
+            );
+        });
     }
 
     @PostMapping("/assets")
@@ -119,7 +129,17 @@ public class AssetController {
 
     @GetMapping("/assets/history")
     public List<RentalHistory> getHistory() {
-        return historyRepository.findAllByOrderByRentalDateDesc();
+
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        String username = auth.getName();
+        boolean isAdmin = auth.getAuthorities().stream()
+                .anyMatch(a -> a.getAuthority().equals("ROLE_ADMIN"));
+
+        if (isAdmin) {
+            return historyRepository.findAll();
+        } else {
+            return historyRepository.findByRentedBy(username);
+        }
     }
 
     @GetMapping("/assets/stats")
@@ -180,6 +200,11 @@ public class AssetController {
         User user = userRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Nie znaleziono użytkownika"));
 
+
+        if ("admin".equals(user.getUsername())) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Nie można usunąć głównego administratora!");
+        }
+
         List<RentalHistory> activeRentals = historyRepository.findAll().stream()
                 .filter(h -> h.getRentedBy().equals(user.getUsername()) && h.getReturnDate() == null)
                 .toList();
@@ -201,6 +226,12 @@ public class AssetController {
     @PatchMapping("/users/{id}/role")
     public User changeRole(@PathVariable Long id, @RequestBody String newRole) {
         User user = userRepository.findById(id).orElseThrow();
+
+
+        if ("admin".equals(user.getUsername())) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Nie można zmienić roli głównemu administratorowi!");
+        }
+
         user.setRole(newRole.replace("\"", ""));
         return userRepository.save(user);
     }

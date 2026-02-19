@@ -83,22 +83,29 @@ async function fetchAssets() {
         const isAdmin = currentUser.role && currentUser.role.includes("ADMIN");
         const isGuest = currentUser.username === "Gość";
 
-        list.innerHTML = assets.map(asset => {
-            const currentRental = history.find(h => h.asset && h.asset.id === asset.id && h.returnDate === null);
-            const renterName = currentRental ? currentRental.rentedBy : null;
-            const isMine = renterName && currentUser.username && renterName.toLowerCase().trim() === currentUser.username.toLowerCase().trim();
-            const isFav = favorites.includes(asset.id);
 
-            let actionBtn = "";
-            if (asset.available) {
-                actionBtn = isGuest ?
-                    `<button class="btn btn-outline" style="width:100%; justify-content:center" onclick="openModal('loginModal')">Zaloguj się</button>` :
-                    `<button class="btn btn-primary" style="width:100%; justify-content:center" onclick="rentAsset(${asset.id})">WYPOŻYCZ</button>`;
-            } else {
-                actionBtn = (isAdmin || isMine) ?
-                    `<button class="btn" style="width:100%; justify-content:center; background:var(--success); color:white" onclick="returnAsset(${asset.id})">ODBIERZ ZWROT</button>` :
-                    `<button class="btn" style="width:100%; justify-content:center; background:#e2e8f0; color:#94a3b8; cursor:not-allowed" disabled>📦 U: ${renterName}</button>`;
-            }
+       list.innerHTML = assets.map(asset => {
+           const currentRental = history.find(h => h.asset && h.asset.id === asset.id && h.returnDate === null);
+           const renterName = currentRental ? currentRental.rentedBy : null;
+           const isMine = renterName && currentUser.username && renterName.toLowerCase().trim() === currentUser.username.toLowerCase().trim();
+           const isFav = favorites.includes(asset.id);
+
+
+           const formattedDate = asset.rentalDate ? new Date(asset.rentalDate).toLocaleDateString() : 'Brak danych';
+
+           let actionBtn = "";
+           if (asset.available) {
+               actionBtn = isGuest ?
+                   `<button class="btn btn-outline" style="width:100%; justify-content:center" onclick="openModal('loginModal')">Zaloguj się</button>` :
+                   `<button class="btn btn-primary" style="width:100%; justify-content:center" onclick="rentAsset(${asset.id})">WYPOŻYCZ</button>`;
+           } else {
+
+               actionBtn = (isAdmin || isMine) ?
+                   `<button class="btn" style="width:100%; justify-content:center; background:var(--success); color:white" onclick="returnAsset(${asset.id})">ODBIERZ ZWROT</button>` :
+                   `<button class="btn" style="width:100%; justify-content:center; background:#f1f5f9; color:#64748b; cursor:not-allowed" disabled>📦 Od: ${formattedDate}</button>`;
+           }
+
+
 
             return `
                 <div class="asset-card glass-panel">
@@ -382,18 +389,27 @@ async function fetchUsers() {
         const list = document.getElementById('users-list');
         if (!list) return;
 
-        list.innerHTML = users.map(user => `
-            <div style="display:flex; justify-content:space-between; align-items:center; padding: 12px 0; border-bottom: 1px solid rgba(0,0,0,0.05)">
-                <div>
-                    <div style="font-weight:600">${user.username}</div>
-                    <div style="font-size:0.7rem; opacity:0.5">${user.role}</div>
+        list.innerHTML = users.map(user => {
+            const isUserAdmin = user.role.includes("ADMIN");
+            const isMainAdmin = user.username === "admin";
+
+            return `
+                <div style="display:flex; justify-content:space-between; align-items:center; padding: 12px 0; border-bottom: 1px solid rgba(0,0,0,0.05)">
+                    <div>
+                        <div style="font-weight:600">
+                            ${isUserAdmin ? '🛡️' : '👤'} ${user.username}
+                        </div>
+                        <div style="font-size:0.7rem; opacity:0.5">${user.role}</div>
+                    </div>
+                    <div>
+                        ${isMainAdmin ? '<span style="font-size:0.7rem; opacity:0.5">Główny Admin</span>' : `
+                            <button onclick="toggleAdmin(${user.id}, '${user.role}')" title="Zmień rolę" style="border:none; background:none; cursor:pointer; font-size:1.2rem">🔄</button>
+                            <button onclick="deleteUser(${user.id})" title="Usuń" style="border:none; background:none; cursor:pointer; font-size:1.2rem">🗑️</button>
+                        `}
+                    </div>
                 </div>
-                <div>
-                    <button onclick="toggleAdmin(${user.id}, '${user.role}')" title="Zmień rolę" style="border:none; background:none; cursor:pointer">🔑</button>
-                    <button onclick="deleteUser(${user.id})" title="Usuń" style="border:none; background:none; cursor:pointer">❌</button>
-                </div>
-            </div>
-        `).join('');
+            `;
+        }).join('');
     } catch (e) { console.error("Błąd fetchUsers:", e); }
 }
 
@@ -513,11 +529,19 @@ function renderMyRentals(history) {
 function updateMyRentalsUI(history) {
     const panel = document.getElementById('my-rentals-panel');
     const list = document.getElementById('my-rentals-list');
+    const title = document.querySelector('#my-rentals-panel h2');
 
     if (!panel || !list || currentUser.username === 'Gość') {
         if(panel) panel.style.display = 'none';
         return;
     }
+
+
+    if(title) {
+        const isAdmin = currentUser.role && currentUser.role.includes("ADMIN");
+        title.innerText = isAdmin ? "Ostatnie operacje (Global)" : "Moje operacje";
+    }
+
 
 
     const myCurrentItems = history.filter(h =>
